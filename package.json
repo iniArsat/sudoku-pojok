@@ -1,0 +1,28 @@
+{
+  "name": "sudoku-pojok",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Sudoku 100 level di pojok kanan bawah desktop",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "levels": "tsx scripts/generate-levels.ts",
+    "tauri": "tauri",
+    "build:windows": "tauri build --bundles nsis"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2",
+    "@types/node": "^22.20.5",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,98 @@
+# Membuat installer Windows dan macOS di server GitHub, lalu menaruhnya di halaman
+# Releases. Berjalan otomatis setiap ada perubahan di branch main, atau manual dari
+# tab Actions. Build macOS menunggu Windows selesai agar keduanya masuk ke rilis yang sama.
+name: Build installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-installer
+  cancel-in-progress: true
+
+env:
+  RELEASE_BODY: |
+    **Windows:** unduh file yang berakhiran `-setup.exe`, lalu klik dua kali untuk memasang.
+
+    **Mac (Apple Silicon dan Intel):** unduh file `.dmg`, buka, lalu seret Sudoku Pojok ke folder Applications. Aplikasi ini belum ditandatangani Apple, jadi saat pertama kali dibuka macOS akan menolaknya. Buka Terminal dan jalankan:
+
+    ```
+    xattr -cr "/Applications/Sudoku Pojok.app"
+    ```
+
+    lalu buka Sudoku Pojok seperti biasa. Cara lain: coba buka sekali, lalu buka System Settings → Privacy & Security dan klik **Open Anyway**.
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Tes
+        run: npm test
+
+      - name: Build dan terbitkan installer
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Sudoku Pojok v__VERSION__"
+          releaseBody: ${{ env.RELEASE_BODY }}
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis
+
+  macos:
+    needs: windows
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      # Satu aplikasi universal untuk Mac Apple Silicon (M1 ke atas) dan Mac Intel.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Build dan unggah ke rilis yang sama
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Sudoku Pojok v__VERSION__"
+          releaseBody: ${{ env.RELEASE_BODY }}
+          releaseDraft: false
+          prerelease: false
+          args: --target universal-apple-darwin --bundles app,dmg
